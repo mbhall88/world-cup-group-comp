@@ -1,0 +1,36 @@
+{
+  "participants": [
+    {
+      "name": "Dimas",
+      "teams": ["Uruguay", "Iran", "Panama", "Colombia", "Netherlands", "Argentina"]
+    },
+    {
+      "name": "Ella",
+      "teams": ["Egypt", "Senegal", "Austria", "Norway", "Scotland", "Japan"]
+    },
+    {
+      "name": "Victoria",
+      "teams": ["Qatar", "Paraguay", "Portugal", "Australia", "Brazil", "Democratic Republic of the Congo"]
+    },
+    {
+      "name": "Jocelyn",
+      "teams": ["Jordan", "Cape Verde", "Saudi Arabia", "Turkey", "South Africa", "Uzbekistan"]
+    },
+    {
+      "name": "Akira",
+      "teams": ["Haiti", "France", "Tunisia", "Ecuador", "Bosnia and Herzegovina", "Mexico"]
+    },
+    {
+      "name": "Michael",
+      "teams": ["Spain", "New Zealand", "Morocco", "Algeria", "Ghana", "Switzerland"]
+    },
+    {
+      "name": "Tricia",
+      "teams": ["Czech Republic", "Curaçao", "Ivory Coast", "United States", "Sweden", "South Korea"]
+    },
+    {
+      "name": "Leah",
+      "teams": ["Belgium", "Canada", "Germany", "Croatia", "Iraq", "England"]
+    }
+  ]
+}
