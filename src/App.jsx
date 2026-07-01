@@ -215,6 +215,21 @@ function App() {
 
     if (games.length === 0) return stats;
 
+    const getWinner = (match) => {
+      const hs = parseInt(match.home_score) || 0;
+      const as = parseInt(match.away_score) || 0;
+      if (hs > as) return 'home';
+      if (as > hs) return 'away';
+      
+      // Check penalty shootouts
+      const hps = parseInt(match.home_penalty_score) || 0;
+      const aps = parseInt(match.away_penalty_score) || 0;
+      if (hps > aps) return 'home';
+      if (aps > hps) return 'away';
+      
+      return null;
+    };
+
     // First scan to determine groups and basic group match stats
     games.forEach(g => {
       const isFinished = g.finished === 'TRUE';
@@ -280,22 +295,20 @@ function App() {
 
         // Check if winner of the final
         if (isFinished && stage === 'final') {
-          const hs = parseInt(g.home_score) || 0;
-          const as = parseInt(g.away_score) || 0;
-          if (hs > as && stats[home]) {
+          const winner = getWinner(g);
+          if (winner === 'home' && stats[home]) {
             stats[home].stages.add('winner');
-          } else if (as > hs && stats[away]) {
+          } else if (winner === 'away' && stats[away]) {
             stats[away].stages.add('winner');
           }
         }
         
         // Winner of 3rd place gets 3rd place bonus
         if (isFinished && stage === 'third') {
-          const hs = parseInt(g.home_score) || 0;
-          const as = parseInt(g.away_score) || 0;
-          if (hs > as && stats[home]) {
+          const winner = getWinner(g);
+          if (winner === 'home' && stats[home]) {
             stats[home].stages.add('third_winner');
-          } else if (as > hs && stats[away]) {
+          } else if (winner === 'away' && stats[away]) {
             stats[away].stages.add('third_winner');
           }
         }
@@ -320,37 +333,31 @@ function App() {
     });
 
     // Determine elimination
-    // A team is eliminated if it didn't make it to R32 (once R32 started) or lost a knockout match
+    // A team is eliminated if it didn't make it to R32 (once R32 started/determined) or lost a knockout match
+    const groupStageFinished = games.filter(g => g.type === 'group').every(g => g.finished === 'TRUE');
     const r32Started = games.some(g => g.type === 'r32' && g.time_elapsed !== 'notstarted');
+    const r32Determined = games.some(g => g.type === 'r32' && g.home_team_name_en);
+    const knockoutsDetermined = groupStageFinished || r32Started || r32Determined;
     
     Object.keys(stats).forEach(name => {
       const team = stats[name];
       
-      // If R32 started and this team didn't qualify, it's eliminated
-      if (r32Started && !team.stages.has('r32')) {
+      // If R32 started/determined and this team didn't qualify, it's eliminated
+      if (knockoutsDetermined && !team.stages.has('r32')) {
         team.eliminated = true;
         return;
       }
 
       // Check if they lost in a finished knockout match
       games.forEach(g => {
-        if (g.finished === 'TRUE' && g.type !== 'group' && g.type !== 'third') {
-          const hs = parseInt(g.home_score) || 0;
-          const as = parseInt(g.away_score) || 0;
-          if (hs > as && g.away_team_name_en === name) {
+        if (g.finished === 'TRUE' && g.type !== 'group') {
+          const home = g.home_team_name_en;
+          const away = g.away_team_name_en;
+          const winner = getWinner(g);
+          
+          if (winner === 'home' && away === name) {
             team.eliminated = true;
-          } else if (as > hs && g.home_team_name_en === name) {
-            team.eliminated = true;
-          }
-        }
-        
-        // 3rd place loser is also eliminated (finishes 4th)
-        if (g.finished === 'TRUE' && g.type === 'third') {
-          const hs = parseInt(g.home_score) || 0;
-          const as = parseInt(g.away_score) || 0;
-          if (hs > as && g.away_team_name_en === name) {
-            team.eliminated = true;
-          } else if (as > hs && g.home_team_name_en === name) {
+          } else if (winner === 'away' && home === name) {
             team.eliminated = true;
           }
         }
@@ -811,6 +818,7 @@ function App() {
         <main className="slide-up">
           {/* LEADERBOARD TAB */}
           {activeTab === 'leaderboard' && (
+            <>
             <div className="grid-container">
               {/* Leaderboard Table Card */}
               <div className="dashboard-card">
@@ -944,6 +952,71 @@ function App() {
                 </div>
               )}
             </div>
+
+            <div className="dashboard-card" style={{ marginTop: '24px' }}>
+              <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '12px', marginBottom: '16px' }}>
+                <h3 className="card-title" style={{ fontSize: '18px', color: 'var(--secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Trophy size={18} /> Points & Rules Legend
+                </h3>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', fontSize: '14px' }}>
+                <div>
+                  <h4 style={{ color: 'var(--text-main)', marginBottom: '12px', fontWeight: '600' }}>Match Outcomes</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border)' }}>
+                      <span>Win (Group Stage)</span>
+                      <span style={{ fontWeight: '700', color: 'var(--primary)' }}>3 pts</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border)' }}>
+                      <span>Draw (Group Stage)</span>
+                      <span style={{ fontWeight: '700', color: 'var(--warning)' }}>1 pt</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border)' }}>
+                      <span>Loss (Group Stage)</span>
+                      <span style={{ fontWeight: '700', color: 'var(--danger)' }}>0 pts</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 style={{ color: 'var(--text-main)', marginBottom: '12px', fontWeight: '600' }}>Knockout Progression (Cumulative Bonus)</h4>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ background: 'rgba(0, 229, 255, 0.08)', border: '1px solid rgba(0, 229, 255, 0.2)', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <span style={{ color: 'var(--accent-blue)', fontWeight: '600' }}>R32</span>
+                      <span style={{ color: 'var(--text-main)' }}>+5 pts</span>
+                    </div>
+                    <div style={{ background: 'rgba(0, 229, 255, 0.08)', border: '1px solid rgba(0, 229, 255, 0.2)', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <span style={{ color: 'var(--accent-blue)', fontWeight: '600' }}>R16</span>
+                      <span style={{ color: 'var(--text-main)' }}>+8 pts</span>
+                    </div>
+                    <div style={{ background: 'rgba(0, 229, 255, 0.08)', border: '1px solid rgba(0, 229, 255, 0.2)', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <span style={{ color: 'var(--accent-blue)', fontWeight: '600' }}>QF</span>
+                      <span style={{ color: 'var(--text-main)' }}>+12 pts</span>
+                    </div>
+                    <div style={{ background: 'rgba(0, 229, 255, 0.08)', border: '1px solid rgba(0, 229, 255, 0.2)', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <span style={{ color: 'var(--accent-blue)', fontWeight: '600' }}>SF</span>
+                      <span style={{ color: 'var(--text-main)' }}>+18 pts</span>
+                    </div>
+                    <div style={{ background: 'rgba(255, 215, 0, 0.08)', border: '1px solid rgba(255, 215, 0, 0.2)', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <span style={{ color: 'var(--secondary)', fontWeight: '600' }}>Final</span>
+                      <span style={{ color: 'var(--text-main)' }}>+25 pts</span>
+                    </div>
+                    <div style={{ background: 'rgba(0, 255, 135, 0.08)', border: '1px solid rgba(0, 255, 135, 0.2)', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <span style={{ color: 'var(--primary)', fontWeight: '700' }}>🏆 Champion</span>
+                      <span style={{ color: 'var(--text-main)', fontWeight: '600' }}>+35 pts</span>
+                    </div>
+                    <div style={{ background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.2)', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <span style={{ color: 'var(--warning)', fontWeight: '600' }}>🥉 3rd Place</span>
+                      <span style={{ color: 'var(--text-main)' }}>+5 pts</span>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '12px', fontStyle: 'italic' }}>
+                    * Progression bonuses are cumulative. Reaching a stage earns its respective points, building up as a team advances.
+                  </p>
+                </div>
+              </div>
+            </div>
+            </>
           )}
 
           {/* DERBY / HEAD TO HEAD TAB */}
